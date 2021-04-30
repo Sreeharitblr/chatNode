@@ -28,6 +28,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.get("/reseve", Controller.getMag);
 
 let interval;
+var Grp = [];
 
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
@@ -40,19 +41,38 @@ io.on("connection", (socket) => {
     clearInterval(interval);
   });
 
-  socket.on("messageAll", data =>{
-    const newData = Object.assign(data,{send:false})
+  socket.on("messageAll", (data) => {
+    const newData = Object.assign(data, { send: false });
     console.log("message", newData);
-    
-    socket.broadcast.emit("message", newData)
-  })
 
+    socket.broadcast.emit("message", newData);
+  });
+
+  socket.on("subscribe", (room) => {
+    console.log("SUBS", room);
+    Grp.indexOf(room) !== -1 ? console.log("yes") : Grp.push(room);
+    socket.join(room);
+  });
+
+  socket.on("unsubscribe", (room) => {
+    console.log("UNSUBS", room);
+    socket.leave(room);
+  });
+
+  socket.on("roomMessage", (data) => {
+    const newData = Object.assign(data.sendmessage, {
+      send: false,
+      roomname: data.room,
+    });
+    //console.log("data", newData);
+    socket.broadcast.to(data.room).emit("message", newData);
+  });
 });
 
 const getApiAndEmit = (socket) => {
   const response = new Date();
   // Emitting a new message. Will be consumed by the client
-  socket.emit("FromAPI", response);
+  socket.emit("FromAPI", { response, Grp });
 };
 
 app.post("/send", Controller.createMsg);
